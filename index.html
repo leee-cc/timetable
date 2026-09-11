@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f5f7">
+<title>暨南大学课程表 · 李唱</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --card:#ffffff;
+    --text:#1e2330;
+    --muted:#6b7280;
+    --faint:#9aa1ad;
+    --line:#e6e8ec;
+    --line-strong:#ced3db;
+    --head:#fafbfc;
+    --live:#e11d48;
+    --soon:#2563eb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:26px 20px 64px}
+
+  /* ══════════ 视图切换 ══════════ */
+  .viewswitch{
+    display:inline-flex;padding:2px;margin-bottom:14px;
+    background:#e9ebef;border:1px solid var(--line);border-radius:11px;
+  }
+  .viewswitch button{
+    display:flex;align-items:center;gap:6px;
+    border:0;background:transparent;color:var(--muted);
+    padding:6px 13px;border-radius:9px;font-size:13px;font-weight:500;
+  }
+  .viewswitch button:hover{background:transparent;color:var(--text)}
+  .viewswitch button:active{transform:none}
+  .viewswitch button[aria-pressed="true"]{
+    background:var(--card);color:var(--text);font-weight:600;
+    box-shadow:0 1px 3px rgba(20,25,40,.13);
+  }
+  .viewswitch svg{width:14px;height:14px;display:block}
+
+  /* ══════════ 状态横幅 ══════════ */
+  .status{
+    border-radius:14px;border:1px solid var(--line);background:var(--card);
+    padding:16px 20px;margin-bottom:14px;
+    display:flex;gap:16px;align-items:center;
+    transition:border-color .2s,background .2s;
+  }
+  .status .dot{
+    flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:var(--faint);
+  }
+  .status .body{flex:1;min-width:0}
+  .status .kicker{
+    font-size:12px;font-weight:600;letter-spacing:.6px;
+    display:flex;align-items:center;gap:7px;margin-bottom:3px;
+  }
+  .status .cname{font-size:16px;font-weight:600;line-height:1.3}
+  .status .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .status .meta{font-size:12.5px;color:#4b5361;margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
+  .status .count{margin-left:auto;text-align:right;flex:0 0 auto}
+  .status .count b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .status .count span{display:block;font-size:11.5px;color:var(--faint)}
+  .status .bar{height:3px;border-radius:2px;background:#eceef2;margin-top:9px;overflow:hidden}
+  .status .bar i{display:block;height:100%;background:var(--live);border-radius:2px;transition:width .9s linear}
+
+  .status.live{border-color:rgba(225,29,72,.3);background:linear-gradient(180deg,#fff6f8,#fff)}
+  .status.live .dot{background:var(--live);animation:pulse 1.8s infinite}
+  .status.live .kicker{color:var(--live)}
+  .status.soon{border-color:rgba(37,99,235,.28);background:linear-gradient(180deg,#f5f9ff,#fff)}
+  .status.soon .dot{background:var(--soon)}
+  .status.soon .kicker{color:var(--soon)}
+  .status.idle .dot{background:var(--faint)}
+  .status.idle .kicker{color:var(--muted)}
+
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.78)}}
+
+  /* ══════════ toolbar ══════════ */
+  .bar{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 16px;margin-bottom:16px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .nav{display:flex;align-items:center;gap:6px}
+  button{
+    font:inherit;color:var(--text);background:#fff;cursor:pointer;
+    border:1px solid var(--line-strong);border-radius:9px;padding:6px 11px;
+    transition:background .12s,border-color .12s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button:hover{background:#f4f6f9;border-color:#b6bcc6}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.4;cursor:default}
+  button.icon{padding:6px 10px;font-size:15px;line-height:1}
+  button.ghost{border-style:dashed}
+  .weekLabel{font-weight:600;font-size:14.5px;min-width:190px;text-align:center}
+  .weekLabel small{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:6px}
+  .spacer{flex:1}
+  .stat{font-size:12.5px;color:var(--muted)}
+  .stat b{color:var(--text);font-weight:600}
+  label.toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#3d4453;cursor:pointer;user-select:none}
+  input[type=checkbox]{accent-color:#1e2330;width:15px;height:15px;cursor:pointer}
+  .clock{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  /* ══════════ 桌面：周网格 ══════════ */
+  .grid-wrap{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    overflow-x:auto;overflow-y:hidden;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:88px repeat(7,minmax(122px,1fr));
+    grid-template-rows:54px repeat(13,64px);
+    min-width:960px;position:relative;
+  }
+  .corner,.dayhead{
+    background:var(--head);border-bottom:1px solid var(--line-strong);
+    border-right:1px solid var(--line);
+    position:sticky;top:0;z-index:3;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:13px;font-weight:600;gap:1px;
+  }
+  .corner{font-size:12px;color:var(--muted);font-weight:500;left:0;z-index:4}
+  .dayhead small{font-size:11px;color:var(--faint);font-weight:400}
+  .dayhead.today{background:#eef2ff;color:#3730a3}
+  .dayhead.today small{color:#6366f1}
+
+  .slot{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .slot.break{border-top:2px solid var(--line-strong)}
+
+  .timecell{
+    grid-column:1;background:var(--head);
+    border-right:1px solid var(--line-strong);border-bottom:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  }
+  .timecell .p{font-size:12px;font-weight:600;color:#3d4453}
+  .timecell .t{font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .timecell.break{border-top:2px solid var(--line-strong)}
+
+  /* ══════════ 课程卡片 ══════════ */
+  .course{
+    --c:#2563eb;--bgc:#eff5ff;
+    position:relative;z-index:2;margin:3px;padding:7px 9px;
+    border-radius:9px;border:1px solid;border-left-width:3px;
+    background:var(--bgc);border-color:var(--c);color:var(--c);
+    display:flex;flex-direction:column;gap:2px;justify-content:center;
+    overflow:hidden;transition:box-shadow .12s,transform .12s,opacity .15s;
+  }
+  .course:hover{box-shadow:0 3px 10px rgba(20,25,40,.12);transform:translateY(-1px)}
+  .course .name{font-size:12.5px;font-weight:600;line-height:1.25}
+  .course .meta{font-size:11px;color:#5b6472;line-height:1.35;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .course .wk{
+    align-self:flex-start;margin-top:1px;font-size:10.5px;font-weight:600;
+    padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.8);
+    border:1px solid currentColor;opacity:.95;
+  }
+  .course.off{opacity:.3;border-style:dashed;filter:grayscale(.4)}
+  .course.off:hover{opacity:.62}
+
+  /* 正在上课 / 即将上课 高亮 */
+  .course.is-now{
+    z-index:6;border-color:var(--c);border-style:solid;
+    box-shadow:0 0 0 2px var(--c),0 8px 20px -6px rgba(20,25,40,.35);
+  }
+  .course.is-next{
+    z-index:5;border-style:solid;
+    box-shadow:0 0 0 2px rgba(37,99,235,.42);
+  }
+  .tag{
+    position:absolute;top:5px;right:6px;
+    font-size:9.5px;font-weight:700;letter-spacing:.4px;
+    padding:1px 5px;border-radius:4px;color:#fff;background:var(--c);
+  }
+  .course.is-now .tag{background:var(--live)}
+  .course.is-now .tag::before{
+    content:'';display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:#fff;margin-right:3px;vertical-align:middle;animation:pulse 1.8s infinite;
+  }
+
+  /* ══════════ 手机：按天视图 ══════════ */
+  .daytabs{
+    display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .daytabs::-webkit-scrollbar{display:none}
+  .daytab{
+    flex:0 0 auto;min-width:56px;padding:8px 6px 7px;text-align:center;
+    background:var(--card);border:1px solid var(--line);border-radius:11px;
+    display:flex;flex-direction:column;align-items:center;gap:1px;position:relative;
+    transition:background .12s,border-color .12s;
+  }
+  .daytab .dw{font-size:12.5px;font-weight:600}
+  .daytab .dd{font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .daytab .dot{position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--muted);opacity:.55}
+  .daytab.on{background:#1e2330;border-color:#1e2330}
+  .daytab.on .dw{color:#fff}
+  .daytab.on .dd{color:rgba(255,255,255,.6)}
+  .daytab.on .dot{background:#fff;opacity:.8}
+  .daytab.today:not(.on) .dw{color:#4f46e5}
+  .daytab.today:not(.on){border-color:#c7d2fe;background:#f5f7ff}
+
+  .daylist{display:flex;flex-direction:column;gap:10px}
+  .mcard{
+    --c:#2563eb;--bgc:#eff5ff;
+    background:var(--card);border:1px solid var(--line);border-radius:13px;
+    padding:13px 15px 13px 14px;border-left:4px solid var(--c);
+    position:relative;
+  }
+  .mcard.is-now{border-color:rgba(225,29,72,.35);background:linear-gradient(180deg,#fff6f8,#fff);box-shadow:0 0 0 2px rgba(225,29,72,.28)}
+  .mcard.is-next{box-shadow:0 0 0 2px rgba(37,99,235,.3)}
+  .mcard .mtop{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .mcard .mtime{
+    font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;
+    color:var(--c);white-space:nowrap;
+  }
+  .mcard .mname{font-size:15px;font-weight:600;line-height:1.3;flex:1;min-width:0}
+  .mcard .mrows{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+  .mcard .mrow{font-size:12.5px;color:#5b6472;display:flex;gap:7px}
+  .mcard .mrow b{font-weight:500;color:#3d4453;flex:0 0 auto}
+  .mcard .mfoot{
+    margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  }
+  .badge{
+    font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;
+    background:var(--bgc);color:var(--c);border:1px solid currentColor;
+  }
+  .badge.live{background:var(--live);color:#fff;border-color:var(--live)}
+  .badge.soon{background:var(--soon);color:#fff;border-color:var(--soon)}
+  .dayempty{
+    padding:44px 20px;text-align:center;color:var(--faint);font-size:13.5px;
+    background:var(--card);border:1px solid var(--line);border-radius:13px;
+  }
+  .dayempty .big{display:block;font-size:26px;margin-bottom:8px;opacity:.35}
+
+  /* ══════════ 明细：表 / 卡 ══════════ */
+  section{margin-top:26px}
+  h2{font-size:15px;font-weight:600;margin:0 0 12px}
+  .tablecard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--head);font-weight:600;font-size:12px;color:#4b5361;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:#fafbfc}
+  td.name{font-weight:600;white-space:nowrap}
+  td.name i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px;vertical-align:middle}
+  td.weeks{font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.note{color:var(--muted);font-size:12px}
+
+  .clist{display:flex;flex-direction:column;gap:10px}
+  .ccard{
+    --c:#2563eb;--bgc:#eff5ff;
+    background:var(--card);border:1px solid var(--line);border-radius:13px;
+    padding:13px 15px;border-left:4px solid var(--c);
+  }
+  .ccard .cname{font-size:14.5px;font-weight:600;line-height:1.3}
+  .ccard .cline{
+    font-size:12.5px;color:#5b6472;margin-top:6px;
+    display:flex;gap:7px;align-items:baseline;
+  }
+  .ccard .cline em{font-style:normal;color:var(--faint);flex:0 0 46px}
+  .ccard .cline span{flex:1;min-width:0}
+
+  footer{margin-top:26px;color:var(--faint);font-size:12px;text-align:center;line-height:1.8}
+  footer code{background:#eceef2;padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+  /* ══════════ 手机布局 ══════════
+     由 body.mobile-mode 决定（默认手机端，可用顶部按钮切换） */
+  body.mobile-mode .wrap{padding:14px 12px 40px}
+  /* 宽屏下模拟手机宽度，卡片不会被拉得过长 */
+  @media (min-width:861px){
+    body.mobile-mode .wrap{max-width:640px}
+  }
+  /* 手机按天视图只显示当周课程，非本周开关无意义 */
+  body.mobile-mode #showAll,
+  body.mobile-mode .bar label.toggle{display:none}
+
+  body.mobile-mode .status{padding:14px 15px;gap:12px;flex-wrap:wrap}
+  body.mobile-mode .status .cname{font-size:15px}
+  body.mobile-mode .status .count{margin-left:0;flex:1 0 100%;text-align:left;
+    display:flex;align-items:baseline;gap:8px;margin-top:4px}
+  body.mobile-mode .status .count b{font-size:17px}
+  body.mobile-mode .status .count span{display:inline}
+
+  body.mobile-mode .bar{gap:8px;padding:10px 12px}
+  body.mobile-mode .nav{width:100%;justify-content:space-between}
+  body.mobile-mode .weekLabel{min-width:0;flex:1;font-size:13.5px}
+  body.mobile-mode .weekLabel small{display:block;margin-left:0}
+  body.mobile-mode .spacer{display:none}
+  body.mobile-mode .stat{font-size:12px}
+  body.mobile-mode .clock{margin-left:auto}
+
+  body.mobile-mode button{padding:8px 13px;border-radius:10px}
+  body.mobile-mode button.icon{padding:8px 13px;font-size:16px}
+  body.mobile-mode .viewswitch{margin-bottom:12px}
+  body.mobile-mode .viewswitch button{padding:7px 14px;font-size:13.5px}
+
+  body.mobile-mode h2{font-size:14.5px;margin-bottom:10px}
+  body.mobile-mode section{margin-top:22px}
+
+  @media (max-width:380px){
+    .daytab{min-width:50px}
+    .mcard .mname{font-size:14.5px}
+  }
+
+  @media print{
+    body{background:#fff}
+    .viewswitch{display:none}
+    body.mobile-mode .wrap{max-width:none}
+    .bar button,.bar label,.bar .clock{display:none}
+    .status{border-color:#ccc}
+    .course:hover,.course.is-now,.course.is-next{box-shadow:none;transform:none}
+    .grid{grid-template-rows:48px repeat(13,56px)}
+    .grid-wrap{overflow:visible}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="viewswitch" role="group" aria-label="视图切换">
+    <button id="viewMobile" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
+      手机端
+    </button>
+    <button id="viewDesktop" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      电脑端
+    </button>
+  </div>
+
+  <div class="status idle" id="status"></div>
+
+  <div class="bar">
+    <div class="nav">
+      <button class="icon" id="prev" title="上一周">‹</button>
+      <span class="weekLabel" id="weekLabel"></span>
+      <button class="icon" id="next" title="下一周">›</button>
+    </div>
+    <button class="ghost" id="today">回到本周</button>
+    <span class="clock" id="clock"></span>
+    <div class="spacer"></div>
+    <span class="stat" id="stat"></span>
+    <label class="toggle"><input type="checkbox" id="showAll">显示非本周课程</label>
+  </div>
+
+  <div id="view"></div>
+
+  <section>
+    <h2>课程明细</h2>
+    <div id="detail"></div>
+  </section>
+
+  <footer>
+    李唱 · 202632211063 · 新闻与传播学院 · 2026-2027学年第一学期<br>
+    第 N 周 = 2026-09-07 起第 N 个自然周（第2周为 09.14 - 09.20）<br>
+    数据来自《研究生选课.pdf》 · 生成于 2026-09-11
+  </footer>
+
+</div>
+
+<script>
+/* ═════════════ 数据 ═════════════ */
+
+const PERIODS = [
+  ['第一节','08:30~09:15'], ['第二节','09:25~10:10'], ['第三节','10:30~11:15'],
+  ['第四节','11:25~12:10'], ['第五节','13:05~13:50'], ['第六节','14:00~14:45'],
+  ['第七节','14:55~15:40'], ['第八节','15:50~16:35'], ['第九节','16:45~17:30'],
+  ['第十节','18:30~19:15'], ['第十一节','19:25~20:10'], ['第十二节','20:20~21:05'],
+  ['第十三节','21:15~22:00'],
+];
+
+const DAYS = ['周一','周二','周三','周四','周五','周六','周日'];
+const DAY_FULL = ['周一','周二','周三','周四','周五','周六','周日'];
+
+// day: 1=周一 … 7=周日
+const COURSES = [
+  { name:'数据挖掘与分析', note:'26级专硕方向3选修', day:1, start:1,  end:2,  from:2,  to:18, teacher:'刘倩、周志博',   room:'知识产权楼217室', hue:'#2563eb', tint:'#eff5ff' },
+  { name:'马克思主义与社会科学方法论', note:'', day:1, start:3, end:4, from:2, to:10, teacher:'黄漫', room:'N113', hue:'#c2740a', tint:'#fff9ec' },
+  { name:'新时代中国特色社会主义理论与实践', note:'', day:1, start:8, end:9, from:2, to:18, teacher:'林岩', room:'N114', hue:'#dc2f4e', tint:'#fff1f3' },
+  { name:'学术英语', note:'学术英语279', day:2, start:1, end:2, from:2, to:18, teacher:'边少岚', room:'N412', hue:'#0d9488', tint:'#effcfa' },
+  { name:'新闻传播学理论基础', note:'26级新传专硕必修', day:2, start:7, end:9, from:2, to:13, teacher:'方惠', room:'N508', hue:'#15803d', tint:'#f0fdf4' },
+  { name:'计算传播学研究方法和前沿', note:'26级专硕方向3选修', day:2, start:10, end:12, from:12, to:17, teacher:'师文', room:'N311', hue:'#4f46e5', tint:'#eef0ff' },
+  { name:'专业实训工作坊', note:'26级计算传播工作坊（计算传播方向必修）', day:3, start:3, end:4, from:2, to:10, teacher:'李志敏', room:'N527', hue:'#7c3aed', tint:'#f7f4ff' },
+  { name:'专业新闻写作', note:'26级新传专硕必修', day:3, start:8, end:9, from:2, to:18, teacher:'曹轲', room:'★融媒体大厅', hue:'#0e7c9b', tint:'#eefaff' },
+  { name:'计算传播学研究方法和前沿', note:'26级专硕方向3选修', day:4, start:6, end:8, from:12, to:17, teacher:'师文', room:'N311', hue:'#4f46e5', tint:'#eef0ff' },
+  { name:'新闻传播学研究方法', note:'26级新传专硕必修', day:4, start:10, end:12, from:2, to:18, teacher:'程思琪、金圣钧', room:'★知识产权楼703', hue:'#c026a3', tint:'#fdf2fb' },
+  { name:'新闻传播实务前沿讲座', note:'26级新传专硕必修', day:5, start:6, end:8, from:2, to:18, teacher:'吴来安、曾一果', room:'★融媒体大厅', hue:'#556070', tint:'#f4f6f9' },
+];
+
+/* ═════════════ 时间工具 ═════════════ */
+
+const TERM_MONDAY = new Date(2026, 8, 7);   // 第1周周一
+const LAST_WEEK = 18;
+const FIRST_WEEK = 2;
+
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const weekMonday = w => addDays(TERM_MONDAY, (w - 1) * 7);
+const pad = n => String(n).padStart(2, '0');
+const fmt = d => `${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+const dayIdx = d => (d.getDay() + 6) % 7 + 1;                 // 1=周一 … 7=周日
+const toSec = t => { const [h, m] = t.split(':').map(Number); return h * 3600 + m * 60; };
+
+const PSEC = PERIODS.map(([, t]) => { const [a, b] = t.split('~'); return [toSec(a), toSec(b)]; });
+const cStart = c => PSEC[c.start - 1][0];
+const cEnd   = c => PSEC[c.end - 1][1];
+const hhmm   = s => `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}`;
+const timeRange = c => `${hhmm(cStart(c))}–${hhmm(cEnd(c))}`;
+
+function weekOf(date) {
+  const a = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.floor((a - TERM_MONDAY) / 86400000 / 7) + 1;
+}
+const weeksText = c => c.from === c.to ? `第${c.from}周` : `第${c.from}-${c.to}周`;
+const activeIn = (c, w) => w >= c.from && w <= c.to;
+const coursesOn = (dow, w) =>
+  COURSES.filter(c => c.day === dow && activeIn(c, w)).sort((a, b) => a.start - b.start);
+
+function humanDur(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  if (d) return `${d} 天 ${h} 小时`;
+  if (h) return `${h} 小时 ${m} 分`;
+  if (m) return `${m} 分钟`;
+  return `${sec} 秒`;
+}
+
+/* ═════════════ 状态：正在上课 / 即将上课 ═════════════ */
+
+function nextOccurrence(from) {
+  for (let i = 1; i <= 28; i++) {
+    const d = addDays(from, i);
+    const w = weekOf(d);
+    if (w < FIRST_WEEK || w > LAST_WEEK) continue;
+    const list = coursesOn(dayIdx(d), w);
+    if (list.length) {
+      const c = list[0];
+      const at = new Date(d); at.setHours(0, 0, 0, 0); at.setSeconds(cStart(c));
+      return { course: c, at };
+    }
+  }
+  return null;
+}
+
+function getStatus(now = new Date()) {
+  const w = weekOf(now), dow = dayIdx(now);
+  const sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const inTerm = w >= FIRST_WEEK && w <= LAST_WEEK;
+  const today = inTerm ? coursesOn(dow, w) : [];
+
+  const cur = today.find(c => sec >= cStart(c) && sec < cEnd(c));
+  if (cur) {
+    return {
+      kind: 'live', course: cur,
+      progress: (sec - cStart(cur)) / (cEnd(cur) - cStart(cur)),
+      remain: cEnd(cur) - sec,
+      next: today.find(c => sec < cStart(c)) || null,
+    };
+  }
+
+  const later = today.find(c => sec < cStart(c));
+  if (later) {
+    const at = new Date(now); at.setHours(0, 0, 0, 0); at.setSeconds(cStart(later));
+    return { kind: 'soon', course: later, at, sameDay: true, in: cStart(later) - sec };
+  }
+
+  const nx = nextOccurrence(now);
+  if (nx) return { kind: 'soon', course: nx.course, at: nx.at, sameDay: false, in: (nx.at - now) / 1000 };
+  return { kind: 'idle' };
+}
+
+/* ═════════════ 视图状态 ═════════════ */
+
+const todayWeek0 = weekOf(new Date());
+let week = Math.min(LAST_WEEK, Math.max(FIRST_WEEK, todayWeek0));
+let mobileDay = dayIdx(new Date());
+let mobileDayTouched = false;
+let statusKey = '';
+
+const currentWeek = () => weekOf(new Date());   // 跨周时不失效
+
+/* 视图模式：默认手机端，按钮可切换到电脑端；打印时强制电脑端 */
+const MODE_KEY = 'timetable.viewMode';
+let viewMode = 'mobile';
+let printing = false;
+try { if (localStorage.getItem(MODE_KEY) === 'desktop') viewMode = 'desktop'; } catch (e) {}
+
+const isMobile = () => viewMode === 'mobile' && !printing;
+
+const viewEl   = document.getElementById('view');
+const detailEl = document.getElementById('detail');
+const statusEl = document.getElementById('status');
+const weekLabel = document.getElementById('weekLabel');
+const statEl   = document.getElementById('stat');
+const clockEl  = document.getElementById('clock');
+const showAllEl = document.getElementById('showAll');
+
+/* ═════════════ 状态横幅 ═════════════ */
+
+function renderStatus(st) {
+  if (st.kind === 'live') {
+    const c = st.course;
+    statusEl.className = 'status live';
+    statusEl.innerHTML = `
+      <span class="dot"></span>
+      <div class="body">
+        <div class="kicker">正在上课</div>
+        <div class="cname">${c.name}</div>
+        <div class="meta"><span>${c.teacher}</span><span>${c.room}</span><span>${timeRange(c)}</span></div>
+        <div class="bar"><i style="width:${(st.progress * 100).toFixed(1)}%"></i></div>
+        ${st.next ? `<div class="sub" style="margin-top:8px">下一节：${st.next.name} · ${hhmm(cStart(st.next))}</div>` : ''}
+      </div>
+      <div class="count"><b>${humanDur(st.remain)}</b><span>后下课</span></div>`;
+    return;
+  }
+
+  if (st.kind === 'soon') {
+    const c = st.course;
+    const when = st.sameDay
+      ? `今天 ${hhmm(cStart(c))}`
+      : `${DAY_FULL[c.day - 1]} ${fmt(st.at)} ${hhmm(cStart(c))}`;
+    statusEl.className = 'status soon';
+    statusEl.innerHTML = `
+      <span class="dot"></span>
+      <div class="body">
+        <div class="kicker">即将上课</div>
+        <div class="cname">${c.name}</div>
+        <div class="meta"><span>${c.teacher}</span><span>${c.room}</span><span>${when}</span></div>
+      </div>
+      <div class="count"><b>${humanDur(st.in)}</b><span>后开始</span></div>`;
+    return;
+  }
+
+  statusEl.className = 'status idle';
+  statusEl.innerHTML = `
+    <span class="dot"></span>
+    <div class="body">
+      <div class="kicker">暂无课程</div>
+      <div class="cname">${weekOf(new Date()) > LAST_WEEK ? '本学期课程已结束' : '接下来没有安排'}</div>
+      <div class="sub">本学期课程安排至第 ${LAST_WEEK} 周</div>
+    </div>`;
+}
+
+/* 只更新倒计时数字，避免整块重绘 */
+function tickStatus(st) {
+  const b = statusEl.querySelector('.count b');
+  if (!b) return renderStatus(st);
+  if (st.kind === 'live') {
+    b.textContent = humanDur(st.remain);
+    const bar = statusEl.querySelector('.bar i');
+    if (bar) bar.style.width = (st.progress * 100).toFixed(1) + '%';
+    const sub = statusEl.querySelector('.sub');
+    if (sub && st.next) sub.textContent = `下一节：${st.next.name} · ${hhmm(cStart(st.next))}`;
+  } else if (st.kind === 'soon') {
+    b.textContent = humanDur(st.in);
+  }
+}
+
+/* ═════════════ 课程块高亮 ═════════════ */
+
+function decorate(el, c, st) {
+  el.style.setProperty('--c', c.hue);
+  el.style.setProperty('--bgc', c.tint);
+  const isNow  = st.kind === 'live' && st.course === c;
+  const isNext = st.kind === 'soon' && st.course === c && st.at && sameWeek(st.at, week);
+  if (isNow)  el.classList.add('is-now');
+  if (isNext) el.classList.add('is-next');
+  return { isNow, isNext };
+}
+
+function sameWeek(date, w) {
+  const monday = weekMonday(w);
+  return date >= monday && date < addDays(monday, 7);
+}
+
+/* ═════════════ 桌面网格 ═════════════ */
+
+function renderGrid(st) {
+  const mon = weekMonday(week);
+  const isCur = week === currentWeek();
+  const todayIdx = isCur ? dayIdx(new Date()) : 0;
+
+  const g = document.createElement('div');
+  g.className = 'grid';
+
+  const corner = document.createElement('div');
+  corner.className = 'corner'; corner.textContent = '节次';
+  g.appendChild(corner);
+
+  DAYS.forEach((d, i) => {
+    const n = i + 1;
+    const el = document.createElement('div');
+    el.className = 'dayhead' + (n === todayIdx ? ' today' : '');
+    el.innerHTML = `${d}<small>${fmt(addDays(mon, i))}</small>`;
+    g.appendChild(el);
+  });
+
+  for (let p = 1; p <= 13; p++) {
+    const row = p + 1, brk = (p === 5 || p === 10) ? ' break' : '';
+    const tc = document.createElement('div');
+    tc.className = 'timecell' + brk;
+    tc.style.gridRow = row;
+    tc.innerHTML = `<span class="p">${PERIODS[p-1][0]}</span><span class="t">${PERIODS[p-1][1]}</span>`;
+    g.appendChild(tc);
+
+    for (let d = 1; d <= 7; d++) {
+      const s = document.createElement('div');
+      s.className = 'slot' + brk;
+      s.style.gridRow = row; s.style.gridColumn = d + 1;
+      g.appendChild(s);
+    }
+  }
+
+  COURSES.forEach(c => {
+    const on = activeIn(c, week);
+    if (!on && !showAllEl.checked) return;
+    const el = document.createElement('div');
+    el.className = 'course' + (on ? '' : ' off');
+    el.style.gridRow = `${c.start + 1} / ${c.end + 2}`;
+    el.style.gridColumn = c.day + 1;
+    const { isNow, isNext } = on ? decorate(el, c, st) : (el.style.setProperty('--c', c.hue), el.style.setProperty('--bgc', c.tint), {});
+    el.title = `${c.name}\n${c.teacher} · ${c.room}\n${weeksText(c)}　${timeRange(c)}`;
+    el.innerHTML =
+      (isNow ? '<span class="tag">上课中</span>' : isNext ? '<span class="tag">下一节</span>' : '') +
+      `<div class="name">${c.name}</div>` +
+      `<div class="meta">${c.teacher}</div>` +
+      `<div class="meta">${c.room}</div>` +
+      `<div class="wk">${weeksText(c)}</div>`;
+    g.appendChild(el);
+  });
+
+  const wrap = document.createElement('div');
+  wrap.className = 'grid-wrap';
+  wrap.appendChild(g);
+  viewEl.innerHTML = '';
+  viewEl.appendChild(wrap);
+}
+
+/* ═════════════ 手机按天视图 ═════════════ */
+
+function renderDay(st) {
+  const mon = weekMonday(week);
+  const isCur = week === currentWeek();
+  const todayIdx = isCur ? dayIdx(new Date()) : 0;
+
+  // 选中的天：优先保留，其次今天，最后选第一个有课的天
+  if (!mobileDay) mobileDay = todayIdx || 1;
+  if (isCur && todayIdx && !mobileDayTouched) mobileDay = todayIdx;
+
+  const tabs = DAYS.map((d, i) => {
+    const n = i + 1;
+    const has = coursesOn(n, week).length > 0;
+    return `<button class="daytab${n === mobileDay ? ' on' : ''}${n === todayIdx ? ' today' : ''}" data-day="${n}">
+      <span class="dw">${d}</span><span class="dd">${fmt(addDays(mon, i))}</span>
+      ${has ? '<i class="dot"></i>' : ''}
+    </button>`;
+  }).join('');
+
+  const list = coursesOn(mobileDay, week);
+  const body = list.length ? list.map(c => {
+    const on = activeIn(c, week);
+    const isNow  = on && st.kind === 'live' && st.course === c;
+    const isNext = on && st.kind === 'soon' && st.course === c && sameWeek(st.at, week);
+    return `<article class="mcard${isNow ? ' is-now' : isNext ? ' is-next' : ''}"
+                     style="--c:${c.hue};--bgc:${c.tint}">
+      <div class="mtop">
+        <span class="mtime">${timeRange(c)}</span>
+        <span class="mname">${c.name}</span>
+      </div>
+      <div class="mrows">
+        <div class="mrow"><b>节次</b><span>第${c.start}-${c.end}节</span></div>
+        <div class="mrow"><b>老师</b><span>${c.teacher}</span></div>
+        <div class="mrow"><b>地点</b><span>${c.room}</span></div>
+        ${c.note ? `<div class="mrow"><b>备注</b><span>${c.note}</span></div>` : ''}
+      </div>
+      <div class="mfoot">
+        <span class="badge">${weeksText(c)}</span>
+        ${isNow ? '<span class="badge live">正在上课</span>' : ''}
+        ${isNext ? '<span class="badge soon">下一节</span>' : ''}
+      </div>
+    </article>`;
+  }).join('') : `<div class="dayempty"><span class="big">☀</span>${DAYS[mobileDay-1]}没有课程安排</div>`;
+
+  viewEl.innerHTML = `
+    <div class="daytabs">${tabs}</div>
+    <div class="daylist">${body}</div>`;
+
+  viewEl.querySelectorAll('.daytab').forEach(b => {
+    b.onclick = () => { mobileDay = +b.dataset.day; mobileDayTouched = true; render(); };
+  });
+}
+
+/* ═════════════ 明细 ═════════════ */
+
+function renderDetail() {
+  const sorted = [...COURSES].sort((a, b) => a.day - b.day || a.start - b.start);
+
+  if (isMobile()) {
+    detailEl.innerHTML = '<div class="clist">' + sorted.map(c => `
+      <article class="ccard" style="--c:${c.hue};--bgc:${c.tint}">
+        <div class="cname">${c.name}</div>
+        <div class="cline"><em>时间</em><span>${DAY_FULL[c.day-1]} 第${c.start}-${c.end}节 · ${timeRange(c)}</span></div>
+        <div class="cline"><em>周次</em><span>${weeksText(c)}</span></div>
+        <div class="cline"><em>老师</em><span>${c.teacher}</span></div>
+        <div class="cline"><em>地点</em><span>${c.room}</span></div>
+        ${c.note ? `<div class="cline"><em>备注</em><span>${c.note}</span></div>` : ''}
+      </article>`).join('') + '</div>';
+    return;
+  }
+
+  detailEl.innerHTML = `<div class="tablecard"><table>
+    <thead><tr><th>课程</th><th>上课时间</th><th>周次</th><th>授课老师</th><th>地点</th><th>备注</th></tr></thead>
+    <tbody>${sorted.map(c => `<tr>
+      <td class="name"><i style="background:${c.hue}"></i>${c.name}</td>
+      <td>${DAY_FULL[c.day-1]} 第${c.start}-${c.end}节 <span style="color:var(--faint)">${timeRange(c)}</span></td>
+      <td class="weeks">${weeksText(c)}</td>
+      <td>${c.teacher}</td>
+      <td>${c.room}</td>
+      <td class="note">${c.note || '—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+/* ═════════════ 顶栏 ═════════════ */
+
+function renderBar() {
+  const mon = weekMonday(week);
+  const tag = week === currentWeek() ? '　· 本周' : '';
+  weekLabel.innerHTML = `第 ${week} 周<small>${fmt(mon)} - ${fmt(addDays(mon, 6))}${tag}</small>`;
+
+  const wk = COURSES.filter(c => activeIn(c, week));
+  const periods = wk.reduce((n, c) => n + (c.end - c.start + 1), 0);
+  statEl.innerHTML = `本周 <b>${wk.length}</b> 门课 · <b>${periods}</b> 节`;
+
+  document.getElementById('prev').disabled = week <= 1;
+  document.getElementById('next').disabled = week >= LAST_WEEK;
+}
+
+/* ═════════════ 渲染入口 ═════════════ */
+
+function render() {
+  const st = getStatus();
+  renderBar();
+  isMobile() ? renderDay(st) : renderGrid(st);
+  renderDetail();
+  renderStatus(st);
+  statusKey = key(st);
+}
+
+const key = st => st.kind + '|' + (st.course ? st.course.name + st.course.day + st.course.start : '');
+
+function tick() {
+  const now = new Date();
+  clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const st = getStatus(now);
+  if (key(st) !== statusKey) {
+    statusKey = key(st);
+    render();                                      // 上下课切换时重建高亮
+  } else {
+    tickStatus(st);
+  }
+}
+
+/* ═════════════ 交互 ═════════════ */
+
+document.getElementById('prev').onclick = () => { if (week > 1) { week--; mobileDayTouched = false; render(); } };
+document.getElementById('next').onclick = () => { if (week < LAST_WEEK) { week++; mobileDayTouched = false; render(); } };
+document.getElementById('today').onclick = () => {
+  week = Math.min(LAST_WEEK, Math.max(FIRST_WEEK, currentWeek()));
+  mobileDayTouched = false;
+  render();
+};
+showAllEl.onchange = render;
+
+/* 视图切换 */
+const btnMobile = document.getElementById('viewMobile');
+const btnDesktop = document.getElementById('viewDesktop');
+function setMode(mode) {
+  viewMode = mode;
+  document.body.classList.toggle('mobile-mode', mode === 'mobile');
+  btnMobile.setAttribute('aria-pressed', String(mode === 'mobile'));
+  btnDesktop.setAttribute('aria-pressed', String(mode === 'desktop'));
+  try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+  if (mode === 'mobile') mobileDayTouched = false;
+  render();
+}
+btnMobile.onclick = () => setMode('mobile');
+btnDesktop.onclick = () => setMode('desktop');
+setMode(viewMode);
+
+window.addEventListener('beforeprint', () => { printing = true; render(); });
+window.addEventListener('afterprint', () => { printing = false; render(); });
+
+// 切回前台时立即刷新
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+
+render();
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
